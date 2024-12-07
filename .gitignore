@@ -1,0 +1,16 @@
+# Environment variables
+.env
+.env.*
+
+# Virtual environments
+venv/
+.venv/
+env/
+.env/
+virtualenv/
+ENV/
+
+# Project specific
+downloads/
+summaries/
+transcriptions/

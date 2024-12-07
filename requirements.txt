@@ -1,0 +1,8 @@
+yt-dlp
+faster-whisper
+openai
+python-dotenv
+youtube-transcript-api
+ollama
+torch
+python-dateutil
