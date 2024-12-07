@@ -2,14 +2,11 @@ import os
 from dotenv import load_dotenv
 import yt_dlp
 from faster_whisper import WhisperModel
-import openai
+from openai import OpenAI
 import ollama
 from youtube_transcript_api import YouTubeTranscriptApi
 from urllib.parse import urlparse, parse_qs
-import torch
 from datetime import datetime
-import ctypes
-from ctypes.util import find_library
 
 # Load environment variables
 load_dotenv()
@@ -17,35 +14,16 @@ load_dotenv()
 # Configure LLM settings
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
 if LLM_PROVIDER == "openai":
-    openai.api_key = os.getenv("OPENAI_API_KEY")
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2")
-
-# Transcription settings
-FORCE_CPU = os.getenv("FORCE_CPU", "false").lower() == "true"
 
 # Create necessary directories
 os.makedirs('downloads', exist_ok=True)
 os.makedirs('summaries', exist_ok=True)
 os.makedirs('transcriptions', exist_ok=True)
 
-def check_cudnn():
-    """Check if cuDNN is available."""
-    try:
-        cudnn_paths = [
-            'libcudnn.so.8',
-            'libcudnn.so.7',
-            'libcudnn.so'
-        ]
-        for path in cudnn_paths:
-            if find_library(path):
-                return True
-        return False
-    except Exception:
-        return False
-
 def sanitize_filename(filename):
     """Remove invalid characters from filename."""
-    # Replace invalid characters with underscore
     invalid_chars = '<>:"/\\|?*'
     for char in invalid_chars:
         filename = filename.replace(char, '_')
@@ -86,48 +64,32 @@ def download_youtube_video(url):
         audio_path = os.path.join('downloads', f"{info['title']}.mp3")
         return audio_path, info['title']
 
-def is_gpu_available():
-    """Check if CUDA GPU is available and working with cuDNN."""
-    if not torch.cuda.is_available():
-        return False
-    
-    try:
-        # Check CUDA
-        torch.cuda.init()
-        # Create a small tensor on GPU using the recommended method
-        test_tensor = torch.tensor([1.0], device='cuda')
-        # Check cuDNN
-        if not check_cudnn():
-            print("CUDA is available but cuDNN is not found. Falling back to CPU.")
-            return False
-        # If we got here, both CUDA and cuDNN are working
-        return True
-    except Exception as e:
-        print(f"GPU check failed: {str(e)}")
-        return False
-
 def transcribe_audio(audio_path):
     """Transcribe audio using Faster Whisper."""
-    # Check if we should use GPU
-    use_gpu = not FORCE_CPU and is_gpu_available()
-    device = "cuda" if use_gpu else "cpu"
-    compute_type = "float16" if use_gpu else "int8"
-    
-    print(f"Transcribing using: {'GPU' if use_gpu else 'CPU'}")
-    
-    # Load the Whisper model
-    model = WhisperModel("base", device=device, compute_type=compute_type)
-    
-    # Transcribe the audio
-    segments, _ = model.transcribe(audio_path)
-    
-    # Combine all segments into one text
-    transcript = " ".join([segment.text for segment in segments])
-    return transcript
+    try:
+        # First try with GPU
+        if not os.getenv("FORCE_CPU", "false").lower() == "true":
+            try:
+                print("Attempting GPU transcription...")
+                model = WhisperModel("base", device="cuda", compute_type="float16", download_root="models")
+                segments, _ = model.transcribe(audio_path)
+                return " ".join([segment.text for segment in segments])
+            except Exception as e:
+                print(f"GPU transcription failed: {str(e)}")
+                print("Falling back to CPU...")
+        
+        # Use CPU if GPU failed or was forced off
+        print("Using CPU for transcription...")
+        model = WhisperModel("base", device="cpu", compute_type="int8", download_root="models")
+        segments, _ = model.transcribe(audio_path)
+        return " ".join([segment.text for segment in segments])
+    except Exception as e:
+        print(f"Transcription error: {str(e)}")
+        raise
 
 def get_summary_openai(transcript):
     """Get summary using OpenAI's GPT-4."""
-    response = openai.ChatCompletion.create(
+    response = client.chat.completions.create(
         model="gpt-4",
         messages=[
             {"role": "system", "content": "You are a helpful assistant that provides concise video summaries. "
@@ -139,7 +101,7 @@ def get_summary_openai(transcript):
         max_tokens=500
     )
     
-    return response.choices[0].message['content']
+    return response.choices[0].message.content
 
 def get_summary_ollama(transcript):
     """Get summary using Ollama."""
@@ -153,7 +115,7 @@ def get_summary_ollama(transcript):
         model=OLLAMA_MODEL,
         prompt=prompt,
         options={
-            "num_predict": 500,  # Similar to max_tokens but for Ollama
+            "num_predict": 500,
         }
     )
     
@@ -210,7 +172,7 @@ def main():
         print(f"Using LLM Provider: {LLM_PROVIDER}")
         if LLM_PROVIDER == "ollama":
             print(f"Ollama Model: {OLLAMA_MODEL}")
-        print(f"Force CPU: {FORCE_CPU}")
+        print(f"Force CPU: {os.getenv('FORCE_CPU', 'false')}")
         
         # Get YouTube URL from user
         url = input("Please enter the YouTube video URL: ")

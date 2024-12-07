@@ -1,8 +1,8 @@
-yt-dlp
-faster-whisper
-openai
-python-dotenv
-youtube-transcript-api
-ollama
-torch
-python-dateutil
+yt-dlp>=2024.3.10
+faster-whisper>=1.1.0
+openai>=1.14.0
+python-dotenv>=1.0.1
+youtube-transcript-api>=0.6.2
+ollama>=0.1.7
+torch>=2.5.1
+python-dateutil>=2.9.0

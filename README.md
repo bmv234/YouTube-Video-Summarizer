@@ -1,52 +1,44 @@
 # YouTube Video Summarizer
 
-This Python application summarizes YouTube videos by first checking for existing transcriptions, and if none are available, downloads the video and transcribes it using Faster Whisper. The summary can be generated using either OpenAI's GPT-4 or a local LLM via Ollama.
+A Python application that downloads YouTube videos, transcribes them using Faster Whisper (with GPU acceleration), and generates summaries using either OpenAI's GPT-4 or Ollama.
 
 ## Features
 
-- Utilizes existing YouTube transcriptions when available
-- Downloads YouTube videos using yt-dlp (only when necessary)
-- Transcribes audio using Faster Whisper (with GPU support)
-- Generates summaries using either:
-  - OpenAI GPT-4 (cloud-based)
-  - Local LLMs via Ollama (runs locally)
-- Automatic file organization:
-  - Saves transcriptions in `transcriptions/` folder
-  - Saves summaries in `summaries/` folder
-  - Temporary downloads in `downloads/` folder
-- Smart GPU/CPU handling:
-  - Automatically detects GPU availability
-  - Can be forced to use CPU via environment variable
-- Automatic cleanup of temporary files
+- Downloads YouTube videos using yt-dlp
+- Attempts to use existing YouTube transcriptions when available
+- Transcribes videos using Faster Whisper with GPU acceleration (falls back to CPU if needed)
+- Generates summaries using either OpenAI's GPT-4 or Ollama
+- Organizes transcriptions and summaries with timestamps
+- Cleans up downloaded files automatically
 
-## Prerequisites
+## Requirements
 
-- Python 3.8 or higher
-- FFmpeg (required for audio processing)
-- CUDA-compatible GPU (optional, for faster transcription)
-- OpenAI API key (if using OpenAI's GPT-4)
-- Ollama (if using local LLMs)
+- Python 3.12+
+- CUDA-capable GPU (optional, for faster transcription)
+- CUDA 12.1 and cuDNN 9.x installed (for GPU acceleration)
+- FFmpeg (for audio extraction)
 
 ## Installation
 
-1. Clone this repository:
+1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/yourusername/youtube-video-summarizer.git
 cd youtube-video-summarizer
 ```
 
-2. Install the required dependencies:
+2. Create and activate a virtual environment:
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install the required packages:
 ```bash
 pip install -r requirements.txt
 ```
 
-3. Install Ollama (if using local LLMs):
-   Visit [Ollama's website](https://ollama.ai) for installation instructions.
-
-4. Set up your environment variables:
-   - Copy `.env.example` to `.env`
-   - Configure your settings in the `.env` file:
-```bash
+4. Create a `.env` file with your configuration:
+```env
 # Required only if using OpenAI (GPT-4)
 OPENAI_API_KEY=your_api_key_here
 
@@ -64,51 +56,48 @@ FORCE_CPU=false
 
 ## Usage
 
-Run the script using Python:
+1. Run the script:
 ```bash
 python main.py
 ```
 
-The application will:
-1. Prompt you for a YouTube video URL
-2. Check if the video has existing transcriptions/captions
-3. If transcriptions exist:
-   - Use the existing transcriptions
-4. If no transcriptions exist:
-   - Download the video's audio
-   - Transcribe the audio using Faster Whisper (GPU if available)
-5. Generate a summary using your configured LLM
-6. Save outputs:
-   - Transcription saved to `transcriptions/[video_title]_[timestamp].txt`
-   - Summary saved to `summaries/[video_title]_summary_[timestamp].txt`
-7. Display the summary in the console
-8. Clean up temporary downloaded files
+2. Enter a YouTube URL when prompted
 
-## Output Organization
+3. The script will:
+   - Try to find an existing YouTube transcription
+   - If none exists, download the video and transcribe it
+   - Generate a summary using the configured LLM
+   - Save both transcription and summary to timestamped files
+   - Display the summary in the terminal
 
-The project organizes its outputs in the following directory structure:
+## Output Files
 
-```
-youtube-video-summarizer/
-├── transcriptions/     # Stores video transcriptions
-├── summaries/         # Stores video summaries
-└── downloads/         # Temporary folder for downloaded files
-```
+- Transcriptions are saved in the `transcriptions/` directory
+- Summaries are saved in the `summaries/` directory as Markdown files
+- Downloaded files are automatically cleaned up after processing
 
-Each file is saved with a timestamp and the video's title for easy reference.
+## LLM Providers
 
-## Performance
+### OpenAI (GPT-4)
+- Requires an API key
+- Provides high-quality summaries
+- Costs money per API call
 
-The application prioritizes efficiency by:
-1. First checking for existing YouTube transcriptions
-2. Only downloading and transcribing videos when necessary
-3. Using GPU acceleration when available (unless forced to use CPU)
-4. Automatically cleaning up temporary files
-5. Organizing outputs in dedicated folders
+### Ollama
+- Free and runs locally
+- Requires Ollama to be installed and running
+- Quality depends on the chosen model
+- Supports various models (llama2, mistral, etc.)
 
-## Note
+## GPU Acceleration
 
-- Make sure you have sufficient OpenAI API credits if using GPT-4
-- If using Ollama, ensure you have adequate system resources for running the local LLM
-- The quality and speed of summarization may vary depending on your chosen LLM provider and model
-- Transcription speed depends on your hardware and whether GPU is available/used
+The transcription process will automatically use GPU acceleration if:
+1. A CUDA-capable GPU is available
+2. CUDA 12.1 and cuDNN 9.x are properly installed
+3. The `FORCE_CPU` environment variable is not set to "true"
+
+If GPU acceleration fails or is unavailable, the script will automatically fall back to CPU transcription.
+
+## License
+
+MIT License
