@@ -13,9 +13,11 @@ load_dotenv()
 
 # Configure LLM settings
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")  # Default to GPT-4o if not specified
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2")
+
 if LLM_PROVIDER == "openai":
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama2")
 
 # Create necessary directories
 os.makedirs('downloads', exist_ok=True)
@@ -88,9 +90,9 @@ def transcribe_audio(audio_path):
         raise
 
 def get_summary_openai(transcript):
-    """Get summary using OpenAI's GPT-4."""
+    """Get summary using OpenAI's models."""
     response = client.chat.completions.create(
-        model="gpt-4",
+        model=OPENAI_MODEL,  # Use model from environment variable
         messages=[
             {"role": "system", "content": "You are a helpful assistant that provides concise video summaries. "
                                         "Please summarize the following transcript in a clear and organized way, "
@@ -138,7 +140,7 @@ def get_summary(transcript, video_title, video_url):
 - **URL:** {video_url}
 - **Summarized:** {timestamp}
 - **LLM Provider:** {LLM_PROVIDER.upper()}
-{f"- **Model:** {OLLAMA_MODEL}" if LLM_PROVIDER == "ollama" else "- **Model:** GPT-4"}
+{f"- **Model:** {OLLAMA_MODEL}" if LLM_PROVIDER == "ollama" else f"- **Model:** {OPENAI_MODEL}"}
 
 ## Summary
 {summary}
@@ -170,7 +172,9 @@ def cleanup_downloads():
 def main():
     try:
         print(f"Using LLM Provider: {LLM_PROVIDER}")
-        if LLM_PROVIDER == "ollama":
+        if LLM_PROVIDER == "openai":
+            print(f"OpenAI Model: {OPENAI_MODEL}")
+        else:
             print(f"Ollama Model: {OLLAMA_MODEL}")
         print(f"Force CPU: {os.getenv('FORCE_CPU', 'false')}")
         

@@ -1,13 +1,13 @@
 # YouTube Video Summarizer
 
-A Python application that downloads YouTube videos, transcribes them using Faster Whisper (with GPU acceleration), and generates summaries using either OpenAI's GPT-4 or Ollama.
+A Python application that downloads YouTube videos, transcribes them using Faster Whisper (with GPU acceleration), and generates summaries using either OpenAI's models or Ollama.
 
 ## Features
 
 - Downloads YouTube videos using yt-dlp
 - Attempts to use existing YouTube transcriptions when available
 - Transcribes videos using Faster Whisper with GPU acceleration (falls back to CPU if needed)
-- Generates summaries using either OpenAI's GPT-4 or Ollama
+- Generates summaries using either OpenAI models (GPT-4o by default) or Ollama
 - Organizes transcriptions and summaries with timestamps
 - Cleans up downloaded files automatically
 
@@ -39,11 +39,15 @@ pip install -r requirements.txt
 
 4. Create a `.env` file with your configuration:
 ```env
-# Required only if using OpenAI (GPT-4)
+# Required only if using OpenAI
 OPENAI_API_KEY=your_api_key_here
 
 # LLM choice: 'openai' or 'ollama'
 LLM_PROVIDER=openai
+
+# OpenAI model choice (optional, defaults to gpt-4o)
+# Examples: gpt-40, gpt-4, gpt-3.5-turbo, gpt-4-1106-preview
+OPENAI_MODEL=gpt-4o
 
 # Ollama model name (required if using ollama)
 # Examples: llama2, mistral, codellama, etc.
@@ -78,8 +82,9 @@ python main.py
 
 ## LLM Providers
 
-### OpenAI (GPT-4)
+### OpenAI
 - Requires an API key
+- Supports multiple models (GPT-4o by default)
 - Provides high-quality summaries
 - Costs money per API call
 
