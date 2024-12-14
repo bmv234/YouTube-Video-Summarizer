@@ -89,46 +89,59 @@ def transcribe_audio(audio_path):
         print(f"Transcription error: {str(e)}")
         raise
 
-def get_summary_openai(transcript):
+def get_summary_openai(transcript, summary_type):
     """Get summary using OpenAI's models."""
+    system_message = {
+        "short": "You are a helpful assistant that provides concise video summaries. "
+                "Create a brief summary that captures the main points in 2-3 paragraphs. "
+                "Format your response in markdown with a brief bullet list of key takeaways.",
+        "detailed": "You are a helpful assistant that provides comprehensive video summaries. "
+                   "Create a detailed summary that thoroughly analyzes the content, including main points, "
+                   "supporting details, and important context. Structure your response in markdown with "
+                   "clear sections, subsections, and bullet points for better readability."
+    }
+
     response = client.chat.completions.create(
-        model=OPENAI_MODEL,  # Use model from environment variable
+        model=OPENAI_MODEL,
         messages=[
-            {"role": "system", "content": "You are a helpful assistant that provides concise video summaries. "
-                                        "Please summarize the following transcript in a clear and organized way, "
-                                        "highlighting the main points and key takeaways. "
-                                        "Format your response in markdown with appropriate headers and bullet points."},
+            {"role": "system", "content": system_message[summary_type]},
             {"role": "user", "content": transcript}
         ],
-        max_tokens=500
+        max_tokens=16384
     )
     
     return response.choices[0].message.content
 
-def get_summary_ollama(transcript):
+def get_summary_ollama(transcript, summary_type):
     """Get summary using Ollama."""
-    prompt = f"""Please provide a concise summary of the following video transcript, 
-    highlighting the main points and key takeaways. Format your response in markdown with 
-    appropriate headers and bullet points:
+    prompts = {
+        "short": f"""Please provide a brief summary of the following video transcript in 2-3 paragraphs. 
+        Include a bullet list of key takeaways. Format your response in markdown:
 
-    {transcript}"""
+        {transcript}""",
+        "detailed": f"""Please provide a comprehensive summary of the following video transcript. 
+        Include main points, supporting details, and important context. Structure your response in 
+        markdown with clear sections, subsections, and bullet points for better readability:
+
+        {transcript}"""
+    }
     
     response = ollama.generate(
         model=OLLAMA_MODEL,
-        prompt=prompt,
+        prompt=prompts[summary_type],
         options={
-            "num_predict": 500,
+            "num_predict": -1,
         }
     )
     
     return response['response']
 
-def get_summary(transcript, video_title, video_url):
+def get_summary(transcript, video_title, video_url, summary_type):
     """Get summary based on configured LLM provider and format as markdown."""
     if LLM_PROVIDER == "openai":
-        summary = get_summary_openai(transcript)
+        summary = get_summary_openai(transcript, summary_type)
     elif LLM_PROVIDER == "ollama":
-        summary = get_summary_ollama(transcript)
+        summary = get_summary_ollama(transcript, summary_type)
     else:
         raise ValueError(f"Unsupported LLM provider: {LLM_PROVIDER}")
     
@@ -141,6 +154,7 @@ def get_summary(transcript, video_title, video_url):
 - **Summarized:** {timestamp}
 - **LLM Provider:** {LLM_PROVIDER.upper()}
 {f"- **Model:** {OLLAMA_MODEL}" if LLM_PROVIDER == "ollama" else f"- **Model:** {OPENAI_MODEL}"}
+- **Summary Type:** {"Short" if summary_type == "short" else "Detailed"}
 
 ## Summary
 {summary}
@@ -169,6 +183,21 @@ def cleanup_downloads():
         for file in os.listdir('downloads'):
             os.remove(os.path.join('downloads', file))
 
+def get_summary_type():
+    """Get the user's preferred summary type."""
+    while True:
+        print("\nPlease choose a summary type:")
+        print("1. Short (2-3 paragraphs with key takeaways)")
+        print("2. Detailed (Comprehensive analysis with sections)")
+        choice = input("Enter your choice (1 or 2): ").strip()
+        
+        if choice == "1":
+            return "short"
+        elif choice == "2":
+            return "detailed"
+        else:
+            print("Invalid choice. Please enter 1 or 2.")
+
 def main():
     try:
         print(f"Using LLM Provider: {LLM_PROVIDER}")
@@ -180,6 +209,9 @@ def main():
         
         # Get YouTube URL from user
         url = input("Please enter the YouTube video URL: ")
+        
+        # Get summary type preference
+        summary_type = get_summary_type()
         
         # First try to get transcript directly from YouTube
         video_id = get_video_id(url)
@@ -203,7 +235,7 @@ def main():
         print(f"Transcription saved to: {trans_path}")
         
         print("Generating summary...")
-        summary = get_summary(transcript, video_title, url)
+        summary = get_summary(transcript, video_title, url, summary_type)
         
         # Save summary as markdown
         summary_path = save_text_file(summary, 'summaries', f"{video_title}_summary", "md")
